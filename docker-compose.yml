@@ -1,0 +1,21 @@
+version: '3.8'
+services:
+  db:
+    image: postgres
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: aircraft_db
+    ports:
+      - "5432:5432"
+  web:
+    build: 
+      dockerfile: DOCKERFILE
+    env_file:
+      - .env.production
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
