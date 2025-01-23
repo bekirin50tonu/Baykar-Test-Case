@@ -1,0 +1,77 @@
+{% extends "base/base.html" %}
+
+{% block title %}
+    Dashboard
+{% endblock %}
+
+{% block content %}
+
+
+    <div class="flex flex-col w-full h-full">
+        <header class="h-20 w-full bg-gray-300 justify-between items-center w-full h-10 flex flex-row px-10">
+
+            <h3>Baykar IHA Dashboard</h3>
+            <div id="toolbar" class="cursor-pointer hover:bg-gray-200 transition-all  p-2 rounded-xl">
+                <h5 id="toolbar.username"></h5>
+                <h6 id="toolbar.displayname"></h6>
+
+            </div>
+
+        </header>
+        <main class="w-full h-full flex flex-row gap-2">
+            <div class="w-1/6 h-full bg-gray-100">
+                <ul class="flex flex-col gap-2 items-center justify-center my-2">
+                    <li class="bg-gray-200 p-2 rounded-xl w-1/2 text-center hover:bg-gray-300 cursor-pointer transition-all"
+                        onclick="logoutHandler()">Logout
+                    </li>
+                </ul>
+
+
+            </div>
+            <div>dashboard</div>
+        </main>
+    </div>
+
+    <script>
+
+        const logoutHandler = async () => {
+            const response = await fetch('/api/auth/logout', {
+                method: 'GET',
+                headers: {'Content-Type': 'application/json'}
+            });
+            if (response.ok) {
+                window.location.href = "/";
+            }
+        };
+
+
+        let whoamiHandler = async () => {
+
+
+            let toolbar = document.getElementById("toolbar")
+
+
+            const response = await fetch('/api/auth/whoami', {
+                method: 'GET',
+                headers: {'Content-Type': 'application/json'}
+            });
+
+            const data = await response.json();
+            console.log(response.status)
+            if (response.ok) {
+                toolbar.children[0].innerText = data.user.username
+                toolbar.children[1].innerText = `${data.user.first_name} ${data.user.last_name}`
+            } else if (response.status === 401) {
+                window.location.href = "/"
+            }
+            else  {
+                alert(data.error)
+            }
+
+        };
+        window.addEventListener("load", whoamiHandler)
+
+
+    </script>
+
+{% endblock %}
