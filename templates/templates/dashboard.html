@@ -11,34 +11,106 @@
         <header class="h-20 w-full bg-gray-300 justify-between items-center w-full h-10 flex flex-row px-10">
 
             <h3>Baykar IHA Dashboard</h3>
-            <div id="toolbar" class="cursor-pointer hover:bg-gray-200 transition-all  p-2 rounded-xl">
-                <h5 id="toolbar.username"></h5>
-                <h6 id="toolbar.displayname"></h6>
-
+            <div class="p-2 rounded-xl flex flex-row gap-2 items-center justify-between">
+                <div>Notification</div>
+                <div class="flex flex-col gap-2 items-center justify-center w-full">
+                    <h5 class="flex items-center justify-center w-full" id="toolbar.display_name"></h5>
+                    <h6 class="flex items-center justify-center w-full" id="toolbar.team_name"></h6>
+                </div>
+                <p class="bg-gray-300 p-2 rounded-xl w-3/4 text-center hover:bg-gray-300 cursor-pointer transition-all"
+                   onclick="logoutHandler()">Logout
+                </p>
             </div>
 
         </header>
-        <main class="w-full h-full flex flex-row gap-2">
-            <div class="w-1/6 h-full bg-gray-100">
-                <ul class="flex flex-col gap-2 items-center justify-center my-2">
-                    <li class="bg-gray-200 p-2 rounded-xl w-1/2 text-center hover:bg-gray-300 cursor-pointer transition-all"
-                        onclick="logoutHandler()">Logout
-                    </li>
-                </ul>
+
+
+        <main class="w-full h-full grid grid-cols-4 gap-2 p-10">
+            <div class="w-full col-span-4">
+                <table id="production">
+                    <thead class="w-full">
+                    <tr>
+                        <th>Id</th>
+                        <th>Item Name</th>
+                        <th>Plane Type</th>
+                        <th>Team</th>
+                        <th>Is Used</th>
+                        <th>Member Name</th>
+                        <th>Actions</th>
+
+                    </tr>
+                    </thead>
+                </table>
+            </div>
+            <div class="flex flex-col gap-2 col-span-4 ">
+                <h3>Product Section</h3>
+
+                <form id="product_item" class="flex flex-col gap-2">
+
+                    <label for="product_dropdown">Product Item Type
+                        <select id="product_dropdown">
+                        </select>
+                    </label>
+
+                    <button class="bg-blue-400 hover:bg-blue-500 transition-all px-4 py-2 rounded-lg text-white"
+                            type="submit">Product Item
+                    </button>
+
+                </form>
 
 
             </div>
-            <div>dashboard</div>
+
+            {# TODO: Buraya da Geri dönüşük eklenecek            #}
         </main>
     </div>
 
     <script>
 
+        let datatable;
+
+        // datatable sorgu kısmı.
+        const datatableHandler = async (e) => {
+
+            console.log("loaded datatable")
+            datatable = $('#production').DataTable({
+                'serverSide': true, // sunucudan mı alıyor.
+                'searching': true, // arama yapabilir mi.
+                'processing':true,
+                'ajax': '/api/management/dataset/produced?format=datatables',
+                'columns': [
+                    {'data': 'id',"name":"id"},
+                    {'data': 'item.name', 'name': 'item_name'},
+                    {'data': 'item.plane_type.name', "name": "plane_type"},
+                    {'data': 'item.team.name', "name": "team_name"},
+                    {'data': 'is_used',"name":"is_used"},
+                    {'data': 'member.username', 'username': 'member_username'},
+                    {
+                        // actions olarak gelecek olan geri dönüşüm butonu tanımlaması yapılır.
+                        'data': null, "render": function (data, type, row) {
+                            let button = document.createElement('button');
+                            button.className = "bg-red-400 text-white px-4 py-2 rounded-lg disabled:bg-gray-700 text-gray-300 disabled:cursor-not-allowed"
+                            button.onclick = e => recycleProductItemHandler(e, row.id)
+                            button.id = `recycleButton_${row.id}`
+                            button.innerText = "Recycle Item"
+                            button.disabled = row.is_used; // eğer kullanılıyorsa, geri dönüştürülemez.
+
+                            return button;
+                        },
+                    },
+                ],
+
+            });
+        }
+        window.addEventListener("load", datatableHandler) // sayfa yüklendiğinde datatable isteği yapılır.
+
         const logoutHandler = async () => {
+            // Çıkış yapmak istenen noktaya sorgu isteği atılır.
             const response = await fetch('/api/auth/logout', {
                 method: 'GET',
                 headers: {'Content-Type': 'application/json'}
             });
+            // sorgu tamamlanmışsa giriş sayfasına gönderir.
             if (response.ok) {
                 window.location.href = "/";
             }
@@ -48,30 +120,147 @@
         let whoamiHandler = async () => {
 
 
-            let toolbar = document.getElementById("toolbar")
+            // gösterilecek alanları belirtir.
+            let display_name = document.getElementById("toolbar.display_name")
+            let team = document.getElementById("toolbar.team_name")
 
-
+            // kimlik bilgisi alacağı noktaya sorgu atar.
             const response = await fetch('/api/auth/whoami', {
                 method: 'GET',
                 headers: {'Content-Type': 'application/json'}
             });
 
+            // gelen veri json şekline döndürülür.
             const data = await response.json();
-            console.log(response.status)
+            //eğer sorgu başarılıysa.
             if (response.ok) {
-                toolbar.children[0].innerText = data.user.username
-                toolbar.children[1].innerText = `${data.user.first_name} ${data.user.last_name}`
+                // eğer takımın üretim yetkisi varsa.
+                if (data.user.team.has_montage) {
+                    // üretim sayfasına yönlendirir.
+                    window.location.href = "montage"
+                }
+                // istenen yerlere gelen veriler gösterilir.
+                display_name.innerText = `${data.user.first_name} ${data.user.last_name}`
+                team.innerText = data.user.team.name
+                // eğer kimlik bilgisi yok ise.
             } else if (response.status === 401) {
+                // giriş sayfasına yönlendirir.
                 window.location.href = "/"
-            }
-            else  {
+            } else if (data.user.team.has_montage && data.user.team.has_produce) {
+                window.location.href = "admin"
+            } else {
+                // başka hata var ise uyarı olarak verilir.
                 alert(data.error)
             }
 
         };
         window.addEventListener("load", whoamiHandler)
 
+        // takıma göre üretim yapılabilecek parçaların istenmesini sağlar.
+        const getItemTypeHandler = async () => {
+
+            // select elementi id ile alınır.
+            let type_options = document.getElementById("product_dropdown")
+
+            // gerekli sorgu atılır.
+            const response = await fetch('/api/management/items', {
+                method: 'GET',
+                headers: {'Content-Type': 'application/json'}
+            });
+
+            // gelen veri json tipine dönüştürülür.
+            const data = await response.json();
+            // eğer sorgu başarılı ise.
+            if (response.ok) {
+                // gelen veriler liste olacak şekilde her birisi bir option elementi olarak select elementine eklenmesi sağlanır.
+                Array.from(data.data).forEach(opt => type_options.append(new Option(opt.name, opt.id)))
+            } else if (response.status === 401) {
+                // eğer kimlik bilgisi yok ise giriş sayfasına yönlendirilir.
+                window.location.href = "/"
+            } else if (response.status === 403) {
+                // eğer kimlik bilgisi yok ise giriş sayfasına yönlendirilir.
+                window.location.href = "admin"
+            } else {
+                // eğer başka bir hata var ise uyarı olarak gösterilir.
+                alert(data.error)
+            }
+        };
+        window.addEventListener("load", getItemTypeHandler)
+
+        // parça eklemek çalıştırılacak form ve sorgu işlemi.
+        const createProductItemHandler = async (e) => {
+
+            e.preventDefault() // sayfanın yenilenmesini engeller.
+
+            // gereken element alınır.
+            let type_options = document.getElementById("product_dropdown").value
+
+            // sorgu için csrf token eklemesi ve uçak tipi eklemesi yapılır ve sorgu çalıştırılır.
+            const options = {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', "X-CSRFToken": '{{csrf_token}}'},
+                body: JSON.stringify({
+                    "item_type_id": type_options,
+                })
+            }
+            const response = await fetch('/api/management/items', options);
+
+            // gelen veri json olarak dönüştürülür.
+            const data = await response.json();
+
+            // eğer sorgu başarılı ise.
+            if (response.ok) {
+                // gelen mesaj uyarı olarak gösterilir.
+                alert(data.message)
+                // datatable verisi yenilenir.
+                datatable.ajax.reload()
+            } else if (response.status === 401) {
+                // eğer kimlik bilgisi yok ise giriş sayfasına yönlendirilir.
+                window.location.href = "/"
+            } else {
+                // eğer başka bir hata var ise bilgi uyarı olarak verilir.
+                alert("hata", data.detail)
+            }
+        };
+        document.getElementById("product_item").addEventListener("submit", createProductItemHandler)
+
+        const recycleProductItemHandler = async (e, id) => {
+            e.preventDefault() // sorgu sonrası yenilenmesi engellenir.
+            if (!confirm('Are You Sure for Recycle This Item?')) return; // istediğine emin olup olmadığı sorulur. hayır ise fonksiyondan çıkılır.
+
+            // gelen id verisi ile delete sorgusu istenen noktaya gönderilir.
+            const response = await fetch(`/api/management/items`, {
+                method: 'DELETE',
+                headers: {'Content-Type': 'application/json', "X-CSRFToken": '{{csrf_token}}'},
+                body: JSON.stringify({
+                    id: id
+                })
+            });
+
+            // gelen veri json olarak dönüştürülür.
+            const data = await response.json();
+
+            // eğer sorgu başarılıysa.
+            if (response.ok) {
+                // gelen mesaj uyarı olarak gösterilir.
+                alert(data.message)
+                // datatable yenilemesi sağlanır.
+                datatable.ajax.reload()
+            } else if (response.status === 401) {
+                // eğer kimlik yok ise giriş sayfasına yönlendirir.
+                window.location.href = "/"
+            } else {
+                // eğer farklı bir hata var ise mesaj olarak gösterilir.
+                alert(data.error)
+            }
+        }
 
     </script>
+
+    <script src="//code.jquery.com/jquery-3.7.1.js"></script>
+    <script src="//cdn.datatables.net/2.2.1/js/dataTables.js"></script>
+    <script src="//cdn.datatables.net/2.2.1/js/dataTables.tailwindcss.js"></script>
+    <script src="//cdn.tailwindcss.com/"></script>
+
 
 {% endblock %}

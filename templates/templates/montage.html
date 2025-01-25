@@ -1,0 +1,236 @@
+{% extends "base/base.html" %}
+
+{% block title %}
+    Montage
+{% endblock %}
+
+{% block content %}
+
+
+    <div class="flex flex-col w-full h-screen">
+        <header class="h-20 w-full bg-gray-300 justify-between items-center w-full h-10 flex flex-row px-10">
+
+            <h3>Baykar IHA Dashboard</h3>
+            <div class="p-2 rounded-xl flex flex-row gap-2 items-center justify-between">
+                <div>Notification</div>
+                <div class="flex flex-col gap-2 items-center justify-center w-full">
+                    <h5 class="flex items-center justify-center w-full" id="toolbar.display_name"></h5>
+                    <h6 class="flex items-center justify-center w-full" id="toolbar.team_name"></h6>
+                </div>
+                <p class="bg-gray-300 p-2 rounded-xl w-3/4 text-center hover:bg-gray-300 cursor-pointer transition-all"
+                   onclick="logoutHandler()">Logout
+                </p>
+            </div>
+
+        </header>
+
+
+        <main class="w-full h-full grid grid-cols-4 gap-2 p-10">
+            <div class="w-full col-span-3 h-full max-h-screen">
+                <table id="montageTable" class="h-full w-full">
+                    <thead class="w-full">
+                    <tr>
+                        <th>Id</th>
+                        <th>Plane Type</th>
+                        -
+                        <th>Item Name</th>
+                    </tr>
+                    </thead>
+                </table>
+                <div class="flex flex-col gap-2 col-span-3 ">
+                    <h3>Create Plane Project Section</h3>
+                    <form id="montage_plane_form" class="flex flex-col gap-2">
+
+                        <label for="plane_types_dropdown">Product Plane Type
+                            <select id="plane_types_dropdown">
+                            </select>
+                        </label>
+
+                        <button class="bg-blue-400 hover:bg-blue-500 transition-all px-4 py-2 rounded-lg text-white"
+                                type="submit">Montage Plane
+                        </button>
+
+                    </form>
+                </div>
+            </div>
+            <div class="w-full h-[780px] col-span-1 flex flex-col justify-center items-center">
+                <h3>Notifications</h3>
+                <ul class="inline-block overflow-y-scroll overflow-x-hidden list-disc list-inside w-full h-full"
+                    id="stock-notification">
+                </ul>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+
+        let datatable;
+
+        // datatable yükleme işlemini yürütür.
+        const datatableHandler = async (e) => {
+
+            console.log("loaded datatable")
+            datatable = $('#montageTable').DataTable({
+                'serverSide': true, // sunucudan alıyor.
+                'searching': true, // arama yapabilir.
+                'ajax': '/api/management/dataset/montage?format=datatables', // veri alacağı noktayı belirtir.
+                'columns': [ // sütun tanımlamaları ve verilerin nereden ne şekilde geleceğini tanımlar.
+                    {'data': 'id'},
+                    {'data': 'plane.plane_type.name', 'plain_type': 'plain_type.name'},
+                    {'data': 'part.item.name', "name": "item.name"},
+                ]
+
+            });
+            console.log(datatable.errors)
+        }
+        window.addEventListener("load", datatableHandler)
+
+        const logoutHandler = async () => {
+            // Çıkış yapmak istenen noktaya sorgu isteği atılır.
+            const response = await fetch('/api/auth/logout', {
+                method: 'GET',
+                headers: {'Content-Type': 'application/json'}
+            });
+            // sorgu tamamlanmışsa giriş sayfasına gönderir.
+            if (response.ok) {
+                window.location.href = "/";
+            }
+        };
+
+
+        let whoamiHandler = async () => {
+
+            // gösterilecek alanları belirtir.
+            let display_name = document.getElementById("toolbar.display_name")
+            let team = document.getElementById("toolbar.team_name")
+
+            // kimlik bilgisi alacağı noktaya sorgu atar.
+            const response = await fetch('/api/auth/whoami', {
+                method: 'GET',
+                headers: {'Content-Type': 'application/json'}
+            });
+
+            // gelen veri json şekline döndürülür.
+            const data = await response.json();
+            //eğer sorgu başarılıysa.
+            if (response.ok) {
+                // eğer takımın üretim yetkisi varsa.
+                if (data.user.team.has_produce) {
+                    // üretim sayfasına yönlendirir.
+                    window.location.href = "dashboard"
+                }
+                // istenen yerlere gelen veriler gösterilir.
+                display_name.innerText = `${data.user.first_name} ${data.user.last_name}`
+                team.innerText = data.user.team.name
+                // eğer kimlik bilgisi yok ise.
+            } else if (response.status === 401) {
+                // giriş sayfasına yönlendirir.
+                window.location.href = "/"
+            } else if (data.user.team.has_montage && data.user.team.has_produce) {
+                window.location.href = "admin"
+            } else {
+                // başka hata var ise uyarı olarak verilir.
+                alert(data.error)
+            }
+
+        };
+        window.addEventListener("load", whoamiHandler)
+
+
+        const getPlaneProjectHandler = async () => {
+
+            // istenen element getirilir.
+            let type_options = document.getElementById("plane_types_dropdown")
+
+            // istenen noktaya istek atılır.
+            const response = await fetch('/api/management/planes', {
+                method: 'GET',
+                headers: {'Content-Type': 'application/json'}
+            });
+
+            // gelen veri json dönüşümü yapılır.
+            const data = await response.json();
+            // eğer sorgu başarılıysa.
+            if (response.ok) {
+                // gelen veri liste haline dönüştürülüp, select elementine option olarak eklenir.
+                Array.from(data.planes).forEach(opt => type_options.append(new Option(opt.name, opt.id)))
+            } else if (response.status === 401) {
+                // eğer kimlik yok ise giriş ekranına yönlendirir.
+                window.location.href = "/"
+            }else if (response.status === 403) {
+                // eğer kimlik yok ise giriş ekranına yönlendirir.
+                window.location.href = "admin"
+            } else {
+                // eğer hata var ise uyarı olarak gösterilir.
+                alert(data.error)
+            }
+        };
+
+        window.addEventListener("load", getPlaneProjectHandler)
+
+
+        const createPlaneMontageHandler = async (e) => {
+
+            e.preventDefault() // sorgu sonrası sayfa yenilemesi engellenir.
+
+            // uçak tipi bilgisi alınır.
+            let type_options = document.getElementById("plane_types_dropdown").value
+
+            // tip bilgisi ile csrf token bilgisi itenilen noktaya sorgu olarak gönderilir.
+            const options = {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', "X-CSRFToken": '{{csrf_token}}'},
+                body: JSON.stringify({
+                    "type": type_options,
+                })
+            }
+            const response = await fetch('/api/management/montage', options);
+
+            // gelen veri json olarak dönüştürülür.
+            const data = await response.json();
+
+            // eğer cevap başarılı ise.
+            if (response.ok) {
+                // gelen mesaj uyarı olarak bildirilir.
+                alert(data.message)
+                // datatable listesi yenilenir.
+                datatable.ajax.reload()
+            } else if (response.status === 401) {
+                //eğer kimlik bilgisi yok ise giriş sayfasına yönlendirir.
+                window.location.href = "/"
+            } else if (response.status === 403) {
+                //eğer görüntülemek yasak ise giriş sayfasına yönlendirir.
+                window.location.href = "/"
+            } else if (response.status === 422) {
+                // eğer validasyon hatası var ise element alınır.
+                let notification = document.getElementById("stock-notification")
+                // gelen veriler liste haline dönüştürülür ve li elementi olarak gösterilecek şekilde eklenir.
+                Array.from(data.errors).forEach(err => {
+                    let liElement = document.createElement("li")
+                    liElement.id = `notification-${err.item}-${err.plane}`
+                    liElement.className = "text-red-500 w-full text-sm font-bold list p-2 rounded-lg bg-gray-300 my-2"
+                    liElement.innerText = `${err.plane} için ${err.item} parçası ${err.count} adet bulunmaktadır. Lütfen toplamda ${err.total} olmasına dikkat ediniz.`
+                    notification.append(liElement)
+                })
+            } else {
+                // eğer bilinmeyen bir hata var ise hata mesajı uyarı olarak gösterilir.
+                alert(response.error)
+            }
+
+
+            document.getElementById("montage_plane_form").addEventListener("submit", createPlaneMontageHandler)
+
+
+        }
+        document.getElementById("montage_plane_form").addEventListener("submit",createPlaneMontageHandler)
+
+    </script>
+
+    <script src="//code.jquery.com/jquery-3.7.1.js"></script>
+    <script src="//cdn.datatables.net/2.2.1/js/dataTables.js"></script>
+    <script src="//cdn.datatables.net/2.2.1/js/dataTables.tailwindcss.js"></script>
+    <script src="//cdn.tailwindcss.com/"></script>
+
+
+{% endblock %}

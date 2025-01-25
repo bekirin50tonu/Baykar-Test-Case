@@ -1,7 +1,7 @@
 {% extends "base/base.html" %}
 
 {% block title %}
-	Login
+    Login
 {% endblock %}
 
 {% block content %}
@@ -30,31 +30,73 @@
     </div>
 
     <script>
-        document.getElementById('loginForm').addEventListener('submit', async function (event) {
-            event.preventDefault();
 
+        // Kullanıcının kimlik bilgilerini ister. Sayfa yüklendiğinde çağırılır.
+        let whoamiHandler = async () => {
+            // belirtlen adrese istek atar.
+            const response = await fetch('/api/auth/whoami', {
+                method: 'GET',
+                headers: {'Content-Type': 'application/json'}
+            });
+            // cevap verisi json tipine dönüştürülür.
+            const data = await response.json();
+            // eğer cookie verilerinde session verisi var ise ve cevap tamam gelirse
+            if (response.ok) {
+                // gelen veriden takım verisi ile montaj takımında yer aldığı kontrol edilir.
+                if (data.user.team.has_montage) {
+                    // eğer montaj takımında ise montage sayfasına gönderilir.
+                    window.location.href = "montage"
+                } else if (data.user.team.has_produce) {
+                    // eğer üretim takımında ise üretim sayfasına gönderilir.
+                    window.location.href = "dashboard"
+                } else if (data.user.team.has_montage && data.user.team.has_produce) {
+                    window.location.href = "admin"
+                } else {
+                    // eğer yok ise üretim sayfasına gönderilir.
+                    window.location.href = "dashboard"
+                }
+            }
+
+        };
+        window.addEventListener("load", whoamiHandler)
+
+        let loginFormSubmitHandler = async (event) => {
+            event.preventDefault(); // form submit aldığında yapması gereken aktiviteleri engeller. örn: sayfa yenilenmez.
+
+            // elementler id ile değerleri alınır.
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
 
-
+            // istenen yere username ve password verileri ile post isteği atılır.
             const response = await fetch('/api/auth/login/', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json', "X-CSRFToken": '{{csrf_token}}'},
                 body: JSON.stringify({username, password})
             });
 
+            // gelen veri json tipine dönüştürülür.
             const data = await response.json();
+            // eğer istek gerçekleştiyse.
             if (response.ok) {
-                alert(data.message);
-                window.location.href="dashboard"
+                // gelen mesaj uyarı olarak verilir.
+                alert(`${data.message}`);
+                // gelen veri kullanıcı takımının üretim yetkisini denetler. eğer yok ise.
+                if (data.user.team.has_produce && data.user.team.has_montage) {
+                    // eğer bütün veriler var ise admindir.
+                    window.location.href = "admin"
+                } else if (data.user.team.has_montage) {
+                    // montaj sayfasına yönlendirir.
+                    window.location.href = "montage"
+                } else if (data.user.team.has_produce) {
+                    // üretim sayfasına yönlendirir.
+                    window.location.href = "dashboard"
+                }
             } else {
+                // bir problem var ise mesaj, uyarı olarak verilir.
                 alert(data.error);
             }
-            console.log(data)
-        });
+        }
+        document.getElementById('loginForm').addEventListener('submit', loginFormSubmitHandler);
     </script>
-
-
-
 
 {% endblock %}
