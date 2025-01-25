@@ -1,28 +1,11 @@
+from django.forms.models import model_to_dict
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from authentication.models import Team
-from authentication.serializers.serializers import TeamSerializer, UserSerializer
-
-
-# Takımları listeleme ve oluşturma
-class TeamView(APIView):
-    def get(self, request): ## Get Methodu temsil eder.
-        if not request.user.is_superuser:
-            return Response(status=status.HTTP_403_FORBIDDEN) # kullanıcı yeterli yetkisi yok ise bilgi verilir.
-        teams = Team.objects.all() ## Bütün takımları veritabanından alır.
-        serializer = TeamSerializer(teams, many=True) ## Model verisini DTO şekliyle işler.
-        return Response(serializer.data) ## Cevap olarak devam eder.
-
-    def post(self, request): ## post metodu tensil eder.
-        if not request.user.is_superuser:
-            return Response(status=status.HTTP_403_FORBIDDEN) # kullanıcı yeterli yetkisi yok ise bilgi verilir.
-        data = request.data ##gelen form verilerini alır.
-        team = Team.objects.create(name=data['name'], description=data.get('description', ''))
-        return Response({"message": "Team created successfully"}, status=status.HTTP_201_CREATED)
+from authentication.serializers.serializers import  UserSerializer
 
 
 # Gelen kullanıcı işlemlerinin yürütüleceği fonksiyonları içerir.
@@ -41,7 +24,25 @@ class LoginView(APIView):
             },
         ),
         responses={ ## Örnek olarak verilen cevapları içerir.
-            200: openapi.Response("Success!", examples={"application/json": {"message": "Login successful"}}),
+            200: openapi.Response("Success!", examples={"application/json": {
+  "message": "Login successful",
+  "user": {
+    "email": "test_user0@test.com",
+    "first_name": "Kanat",
+    "last_name": "Uyesi",
+    "username": "user0",
+    "team": {
+      "id": 1,
+      "name": "Kanat",
+      "description": "Kanat Takımını Temsil Eder. Üretimden Sorumludur.",
+      "has_produce": True,
+      "has_montage": False
+    },
+    "is_staff": False,
+    "is_superuser": False,
+    "is_active": True
+  }
+}}),
             401: openapi.Response("Unauthentication!", examples={"application/json": {"error": "Invalid credentials"}})
 
         },
@@ -53,8 +54,9 @@ class LoginView(APIView):
         user = authenticate(username=username, password=password) ## django auth sistemi ile tanımlama sağlanır.
 
         if user:
-            login(request, user) ## eğer kullanıcı var ise session işlemini başlatır.
-            return Response({"message": "Login successful"})
+            login(request, user) ## eğer kullanıcı var ise session işlemini başlatır.-
+            serializer = UserSerializer(user)
+            return Response({"message": "Login successful","user":serializer.data})
         return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
 
 # Çıkış sistemi tanımlanması.

@@ -1,11 +1,10 @@
 from django.urls import path
-from .views import TeamView, LoginView, LogoutView, WhoAmIView
+from .views import LoginView, LogoutView, WhoAmIView
 
 urlpatterns = [
-    path("auth/whoami/", WhoAmIView.as_view(), name="whoami"),
-    path('auth/login/', LoginView.as_view(), name='login'),
-    path('auth/logout/', LogoutView.as_view(), name='logout'),
-    path('teams/', TeamView.as_view(), name='team-list'),
+    path("whoami/", WhoAmIView.as_view(), name="whoami"), # user bilgisi almak için tanımlanan endpoint.
+    path('login/', LoginView.as_view(), name='login'), # giriş yapmak için kullanılan endpoint.
+    path('logout/', LogoutView.as_view(), name='logout'), # çıkış yapmak için kullanılan endpoint.
 
 
 ]
