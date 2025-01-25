@@ -10,7 +10,7 @@ from authentication.models import CustomUser
 # Create your tests here.
 
 
-class LoginTestCase(APITestCase):
+class AuthenticationTestCase(APITestCase):
 
     username = "superuser"
     password = "password"
@@ -29,13 +29,25 @@ class LoginTestCase(APITestCase):
         response = self.client.post(reverse('login'), data={'username': self.username, 'password': self.password}) # giriş yapacağı endpointe credential verilerini gönderir.
         self.assertEqual(response.status_code, status.HTTP_200_OK) # sorgu geçerliyse testi geçer.
 
+    def test_login_unauthorized(self): ## giriş sistemi testi.
+        response = self.client.post(reverse('login'), data={'username': self.username+"false", 'password': self.password+"false"}) # giriş yapacağı endpointe credential verilerini gönderir.
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED) # sorgu geçerliyse testi geçer.
+
     def test_whoami(self): ## kullanıcı bilgileri testi.
         self.client.force_login(self.user) # veritabanından aldığı kullanıcıyla giriş yaptırır.
         response = self.client.get(reverse('whoami')) # bilgi alabileceği endpointi sistemden alır ve sorgu yapar.
-        print(response.data) # Gelen bilgiyi görmek için konsola bastırır.
         self.assertEqual(response.status_code, status.HTTP_200_OK) # sorgu geçerliyse testi geçer.
+
+    def test_whoami_unauthorized(self): ## kullanıcı bilgileri testi eğer kullanıcı yoksa.
+        self.client.logout() # çıkış yapılır..
+        response = self.client.get(reverse('whoami')) # bilgi alabileceği endpointi sistemden alır ve sorgu yapar.
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED) # sorgu geçerliyse testi geçer.
 
     def test_logout(self): ## kullanıcı çıkış testi.
         self.client.force_login(self.user) # veritabanından aldığı kullanıcıyla giriş yaptırır.
         response = self.client.get(reverse('logout')) # çıkış yapacağı endpointe sorgu gönderir.
         self.assertEqual(response.status_code, status.HTTP_200_OK) # sorgu geçerliyse testi geçer.
+    def test_logout_unauthorized(self): ## kullanıcı çıkış testi.
+        self.client.logout() # çıkış yapılır..
+        response = self.client.get(reverse('logout')) # çıkış yapacağı endpointe sorgu gönderir.
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED) # sorgu geçerliyse testi geçer.
